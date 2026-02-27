@@ -1,5 +1,20 @@
+# Credentials
 .env
+
+# Python
 venv/
 __pycache__/
+*.pyc
+*.pyo
+
+# Runtime data
 logs/
 data/thronos.db
+
+# Unrelated projects
+thronos_dashboard/
+dashboard/
+thronos_dashboard.zip
+run_dashboard.sh
+DASHBOARD_DEPLOYMENT.md
+RAILWAY_DEPLOY.md
