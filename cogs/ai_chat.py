@@ -12,7 +12,8 @@ class AIChat(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.base_url = os.getenv("THRONOS_API_URL", "https://api.thronoschain.org/api")
+        raw_url = os.getenv("THRONOS_API_URL", "https://api.thronoschain.org/api").rstrip("/")
+        self.base_url = raw_url if raw_url.endswith("/api") else f"{raw_url}/api"
     
     @commands.hybrid_command(name="bind", description="Bind your Thronos wallet to your Discord account")
     async def bind_wallet(self, ctx: commands.Context, wallet_address: str):
