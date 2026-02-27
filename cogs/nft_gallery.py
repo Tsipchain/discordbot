@@ -24,10 +24,14 @@ class NFTGallery(commands.Cog):
                     if resp.status != 200:
                         await ctx.reply("❌ Failed to fetch tokens.", ephemeral=True)
                         return
-                    tokens = await resp.json()
+                    tokens_resp = await resp.json()
                 
                 async with session.get(f"{self.base_url}/tokens/stats", timeout=10) as resp:
-                    stats = await resp.json() if resp.status == 200 else []
+                    stats_resp = await resp.json() if resp.status == 200 else {}
+            
+            # Unwrap the dict responses
+            tokens = tokens_resp.get("tokens", []) if isinstance(tokens_resp, dict) else tokens_resp
+            stats = stats_resp.get("tokens", []) if isinstance(stats_resp, dict) else stats_resp
             
             if not isinstance(tokens, list):
                 await ctx.reply("❌ Invalid token data.", ephemeral=True)
@@ -85,10 +89,14 @@ class NFTGallery(commands.Cog):
                     if resp.status != 200:
                         await ctx.reply("❌ Failed to fetch tokens.", ephemeral=True)
                         return
-                    tokens = await resp.json()
+                    tokens_resp = await resp.json()
                 
                 async with session.get(f"{self.base_url}/tokens/stats", timeout=10) as resp:
-                    stats = await resp.json() if resp.status == 200 else []
+                    stats_resp = await resp.json() if resp.status == 200 else {}
+            
+            # Unwrap the dict responses
+            tokens = tokens_resp.get("tokens", []) if isinstance(tokens_resp, dict) else tokens_resp
+            stats = stats_resp.get("tokens", []) if isinstance(stats_resp, dict) else stats_resp
             
             # Find token
             token = None

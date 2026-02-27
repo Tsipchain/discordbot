@@ -81,11 +81,12 @@ class NetworkStats(commands.Cog):
             color=0x00ff00 if (isinstance(health_data, dict) and health_data.get("ok")) else 0xff0000
         )
         
-        # Network Stats
-        tx_count = network_data.get("tx_count", "N/A")
-        block_count = network_data.get("block_count", "N/A")
-        total_supply = network_data.get("total_supply", "N/A")
-        burned = network_data.get("burned", "N/A")
+        # Network Stats (merge dashboard data for fields missing from /network_stats)
+        dash = dashboard_data if isinstance(dashboard_data, dict) else {}
+        tx_count = network_data.get("tx_count", dash.get("tx_count", "N/A"))
+        block_count = network_data.get("block_count", dash.get("chain_height", "N/A"))
+        total_supply = network_data.get("total_supply", dash.get("total_supply", "N/A"))
+        burned = network_data.get("burned", dash.get("burned", "N/A"))
         
         embed.add_field(
             name="🔢 Transaction Count", 
@@ -108,10 +109,12 @@ class NetworkStats(commands.Cog):
             )
         
         # Active Wallets (from token stats)
-        if isinstance(tokens_data, list):
-            # Find THR token holders
+        token_list = tokens_data
+        if isinstance(tokens_data, dict):
+            token_list = tokens_data.get("tokens", [])
+        if isinstance(token_list, list):
             thr_holders = 0
-            for token_stat in tokens_data:
+            for token_stat in token_list:
                 if isinstance(token_stat, dict):
                     if token_stat.get("symbol") == "THR" or token_stat.get("name") == "Thronos":
                         thr_holders = token_stat.get("holders_count", 0)
