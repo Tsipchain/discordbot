@@ -135,6 +135,7 @@ def has_voted(proposal_id, user_id):
 def update_user_stats(user_id, username, messages=0, reactions=0, referrals=0):
     conn = get_connection()
     cursor = conn.cursor()
+    xp = (messages * 10) + (reactions * 5) + (referrals * 50)
     cursor.execute('''
         INSERT INTO user_stats (user_id, username, message_count, reaction_count, referral_count, xp, last_active)
         VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -143,9 +144,9 @@ def update_user_stats(user_id, username, messages=0, reactions=0, referrals=0):
             message_count = user_stats.message_count + excluded.message_count,
             reaction_count = user_stats.reaction_count + excluded.reaction_count,
             referral_count = user_stats.referral_count + excluded.referral_count,
-            xp = user_stats.xp + (excluded.message_count * 10) + (excluded.reaction_count * 5) + (excluded.referral_count * 50),
+            xp = user_stats.xp + excluded.xp,
             last_active = CURRENT_TIMESTAMP
-    ''', (user_id, username, messages, reactions, referrals))
+    ''', (user_id, username, messages, reactions, referrals, xp))
     conn.commit()
     conn.close()
 
