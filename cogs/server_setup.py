@@ -16,7 +16,7 @@ class ServerSetup(commands.Cog):
                 return None
 
     async def get_roadmap_embed(self):
-        url = "https://thrchain.up.railway.app/roadmap"
+        url = "https://thronoschain.org/roadmap"
         html = await self.fetch_html(url)
         
         embed = discord.Embed(
@@ -62,7 +62,7 @@ class ServerSetup(commands.Cog):
         return embed
 
     async def get_whitepaper_embed(self):
-        url = "https://thrchain.up.railway.app/whitepaper"
+        url = "https://thronoschain.org/whitepaper"
         html = await self.fetch_html(url)
         
         embed = discord.Embed(
@@ -167,7 +167,7 @@ class ServerSetup(commands.Cog):
         # Format: key: { "url": ..., "en": (Title, Desc), ... }
         unified_content = {
             "token-factory": {
-                "url": "https://thrchain.up.railway.app/tokens",
+                "url": "https://thronoschain.org/tokens",
                 "en": ("🏭 Token Factory", "Create your own tokens with one click. ERC-20 compatible with full control."),
                 "el": ("🏭 Εργοστάσιο Token", "Δημιουργήστε τα δικά σας tokens με μία κλικ. ERC-20 compatible με πλήρη έλεγχο."),
                 "es": ("🏭 Fábrica de Tokens", "Crea tus propios tokens con un clic. Compatible con ERC-20 con control total."),
@@ -175,7 +175,7 @@ class ServerSetup(commands.Cog):
                 "ja": ("🏭 トークン工場", "ワンクリックで独自のトークンを作成。ERC-20互換で完全制御。")
             },
             "nft-marketplace": {
-                "url": "https://thrchain.up.railway.app/nft",
+                "url": "https://thronoschain.org/nft",
                 "en": ("🖼️ NFT Marketplace", "Mint, buy and sell unique digital artworks."),
                 "el": ("🖼️ Αγορά NFT", "Mint, αγοράστε και πουλήστε μοναδικά ψηφιακά έργα τέχνης."),
                 "es": ("🖼️ Mercado NFT", "Acuña, compra y vende obras de arte digitales únicas."),
@@ -183,7 +183,7 @@ class ServerSetup(commands.Cog):
                 "ja": ("🖼️ NFT マーケットプレイス", "ユニークなデジタルアートをミント、購入、販売。")
             },
             "smart-contracts": {
-                "url": "https://thrchain.up.railway.app/evm",
+                "url": "https://thronoschain.org/evm",
                 "en": ("📜 Smart Contracts", "Deploy EVM-compatible smart contracts with ready templates."),
                 "el": ("📜 Έξυπνα Συμβόλαια", "Deploy EVM-compatible smart contracts με έτοιμα templates."),
                 "es": ("📜 Contratos Inteligentes", "Despliega contratos inteligentes compatibles con EVM con plantillas listas."),
@@ -191,7 +191,7 @@ class ServerSetup(commands.Cog):
                 "ja": ("📜 スマートコントラクト", "既製テンプレートでEVM互換スマートコントラクトをデプロイ。")
             },
             "decent-music": {
-                "url": "https://thrchain.up.railway.app/music",
+                "url": "https://thronoschain.org/music",
                 "en": ("🎵 Decent Music", "Decentralized music platform for artists and listeners."),
                 "el": ("🎵 Αποκεντρωμένη Μουσική", "Αποκεντρωμένη πλατφόρμα μουσικής για καλλιτέχνες και ακροατές."),
                 "es": ("🎵 Música Descentralizada", "Plataforma de música descentralizada para artistas y oyentes."),
@@ -199,7 +199,7 @@ class ServerSetup(commands.Cog):
                 "ja": ("🎵 分散型音楽", "アーティストとリスナーのための分散型音楽プラットフォーム。")
             },
             "learn-and-earn": {
-                "url": "https://thrchain.up.railway.app/courses",
+                "url": "https://thronoschain.org/courses",
                 "en": ("📚 Learn & Earn", "Learn about blockchain and earn THR tokens by completing courses."),
                 "el": ("📚 Μάθε & Κέρδισε", "Μάθετε για το blockchain και κερδίστε THR tokens ολοκληρώνοντας μαθήματα."),
                 "es": ("📚 Aprende y Gana", "Aprende sobre blockchain y gana tokens THR completando cursos."),
@@ -207,7 +207,7 @@ class ServerSetup(commands.Cog):
                 "ja": ("📚 学んで稼ぐ", "ブロックチェーンを学び、コース完了でTHRトークンを獲得。")
             },
             "governance": {
-                "url": "https://thrchain.up.railway.app/governance",
+                "url": "https://thronoschain.org/governance",
                 "en": ("🏛️ DAO Governance", "Vote on proposals and shape the future of the network."),
                 "el": ("🏛️ Διακυβέρνηση DAO", "Ψηφίστε για προτάσεις και διαμορφώστε το μέλλον του δικτύου."),
                 "es": ("🏛️ Gobernanza DAO", "Vota propuestas y da forma al futuro de la red."),
@@ -215,7 +215,7 @@ class ServerSetup(commands.Cog):
                 "ja": ("🏛️ DAO ガバナンス", "提案に投票し、ネットワークの未来を形作りましょう。")
             },
             "crypto-hunters": {
-                "url": "https://thrchain.up.railway.app/game",
+                "url": "https://thronoschain.org/game",
                 "en": ("🎮 Crypto Hunters", "Join the hunt! Help us test the upcoming game. Vote on features."),
                 "el": ("🎮 Κυνηγοί Crypto", "Λάβετε μέρος στο κυνήγι! Βοηθήστε μας να δοκιμάσουμε το επερχόμενο παιχνίδι."),
                 "es": ("🎮 Cazadores Crypto", "¡Únete a la caza! Ayúdanos a probar el próximo juego."),
@@ -299,7 +299,7 @@ class ServerSetup(commands.Cog):
                 "🇷🇺 **Живая Статистика**: Следите за пульсом сети в реальном времени.\n"
                 "🇯🇵 **ライブ統計**: リアルタイムでThronosネットワークの脈動を監視します。"
             )
-            stats_embed.add_field(name="🔗 Link / Σύνδεσμος / Ссылка / リンク", value="[dashboard.thronos.network](https://thrchain.up.railway.app/)", inline=False)
+            stats_embed.add_field(name="🔗 Link / Σύνδεσμος / Ссылка / リンク", value="[dashboard.thronos.network](https://thronoschain.org/)", inline=False)
             topic = "🇬🇧 Monitor network in real-time | 🇬🇷 Παρακολουθήστε το δίκτυο σε πραγματικό χρόνο | 🇪🇸 Monitorea la red en tiempo real | 🇷🇺 Следите за сетью | 🇯🇵 ネットワークを監視"
             await update_channel_content(stats_channel, embed=stats_embed, topic=topic)
 

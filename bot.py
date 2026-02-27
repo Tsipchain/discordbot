@@ -40,6 +40,7 @@ logger = logging.getLogger('thronos_bot')
 # Load environment variables
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+THRONOS_API_URL = os.getenv('THRONOS_API_URL')
 
 class ThronosBot(commands.Bot):
     def __init__(self):
@@ -65,6 +66,9 @@ class ThronosBot(commands.Bot):
         await self.load_extension('cogs.ticker_status')
         await self.load_extension('cogs.leaderboard')
         await self.load_extension('cogs.nft_gallery')
+        await self.load_extension('cogs.ai_chat')
+        await self.load_extension('cogs.pytheia_webhook')
+        await self.load_extension('cogs.evm_watcher')
         
         # Sync commands with Discord
         await self.tree.sync()
@@ -77,6 +81,8 @@ class ThronosBot(commands.Bot):
 if __name__ == '__main__':
     if not TOKEN:
         print("Error: DISCORD_TOKEN not found in .env file.")
+    elif not THRONOS_API_URL:
+        print("Error: THRONOS_API_URL not found in .env file.")
     else:
         bot = ThronosBot()
         bot.run(TOKEN)

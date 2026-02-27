@@ -55,9 +55,16 @@ def init_db():
             reaction_count INTEGER DEFAULT 0,
             referral_count INTEGER DEFAULT 0,
             xp INTEGER DEFAULT 0,
-            last_active TIMESTAMP
+            last_active TIMESTAMP,
+            wallet_address TEXT
         )
     ''')
+    
+    # Try migrating wallet_address if table already exists
+    try:
+        cursor.execute('ALTER TABLE user_stats ADD COLUMN wallet_address TEXT')
+    except sqlite3.OperationalError:
+        pass # Column already exists
     
     conn.commit()
     conn.close()
@@ -165,6 +172,28 @@ def get_user_rank(user_id):
     user = cursor.fetchone()
     conn.close()
     return rank, dict(user) if user else None
+
+def bind_wallet(user_id, username, wallet_address):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO user_stats (user_id, username, wallet_address, last_active)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id) DO UPDATE SET
+            username = excluded.username,
+            wallet_address = excluded.wallet_address,
+            last_active = CURRENT_TIMESTAMP
+    ''', (user_id, username, wallet_address))
+    conn.commit()
+    conn.close()
+
+def get_wallet(user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT wallet_address FROM user_stats WHERE user_id = ?', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row['wallet_address'] if row else None
 
 # Initialize on import
 init_db()

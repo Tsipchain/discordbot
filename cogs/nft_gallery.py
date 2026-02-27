@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 import aiohttp
 import logging
+import os
 
 logger = logging.getLogger('thronos_bot.nft_gallery')
 
@@ -10,7 +11,7 @@ class NFTGallery(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.base_url = "https://thrchain.up.railway.app/api"
+        self.base_url = os.getenv("THRONOS_API_URL", "https://api.thronoschain.org/api")
     
     @commands.hybrid_command(name="tokens", description="Show all tokens on the network")
     async def tokens_command(self, ctx: commands.Context):

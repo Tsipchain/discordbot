@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 import aiohttp
 import logging
+import os
 
 logger = logging.getLogger('thronos_bot.ticker')
 
@@ -10,7 +11,7 @@ class TickerStatus(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.base_url = "https://thrchain.up.railway.app/api"
+        self.base_url = os.getenv("THRONOS_API_URL", "https://api.thronoschain.org/api")
         self.update_status.start()
     
     def cog_unload(self):
