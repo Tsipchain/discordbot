@@ -1,9 +1,26 @@
 import sqlite3
 import os
 import logging
+import re
 from datetime import datetime
 
 logger = logging.getLogger('thronos_bot.database')
+
+# Wallet address validation: 0x-prefixed, 40 hex chars (EVM address)
+WALLET_ADDRESS_RE = re.compile(r'^0x[0-9a-fA-F]{40}$')
+
+
+def validate_wallet_address(wallet_address):
+    """Validate that a wallet address is a properly formatted EVM address.
+    Returns the checksummed address or raises ValueError."""
+    if not wallet_address or not isinstance(wallet_address, str):
+        raise ValueError("Wallet address must be a non-empty string")
+    wallet_address = wallet_address.strip()
+    if not WALLET_ADDRESS_RE.match(wallet_address):
+        raise ValueError(
+            f"Invalid wallet address format: expected 0x-prefixed 40-character hex string"
+        )
+    return wallet_address
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'thronos.db')
 
@@ -11,6 +28,8 @@ def get_connection():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    # Enable WAL mode for better concurrent read performance (safe literal, not user input)
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 def init_db():
@@ -175,6 +194,7 @@ def get_user_rank(user_id):
     return rank, dict(user) if user else None
 
 def bind_wallet(user_id, username, wallet_address):
+    wallet_address = validate_wallet_address(wallet_address)
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
