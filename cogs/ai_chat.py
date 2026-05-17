@@ -18,9 +18,8 @@ class AIChat(commands.Cog):
     @commands.hybrid_command(name="bind", description="Bind your Thronos wallet to your Discord account")
     async def bind_wallet(self, ctx: commands.Context, wallet_address: str):
         """Bind your wallet to allow AI credit consumption."""
-        if not wallet_address.startswith("0x") and len(wallet_address) != 42:
-            # Basic validation
-            await ctx.reply("❌ Invalid wallet address format. Usually starts with 0x.", ephemeral=True)
+        if not (wallet_address.startswith("THR") or wallet_address.startswith("0x")):
+            await ctx.reply("❌ Invalid wallet address. Must start with `THR` or `0x`.", ephemeral=True)
             return
 
         db.bind_wallet(ctx.author.id, ctx.author.display_name, wallet_address)

@@ -17,7 +17,7 @@ class CustomHelp(commands.Cog):
         """Get user's preferred language from roles."""
         lang_roles = {
             "English": "EN",
-            "Greek": "EL",
+            "Greek": "GR",
             "Spanish": "ES",
             "Russian": "RU",
             "Japanese": "JA"
@@ -34,56 +34,60 @@ class CustomHelp(commands.Cog):
         """Display help information in user's preferred language."""
         lang = self.get_user_lang(ctx.author)
         
-        # Help text in multiple languages
         help_data = {
             "EN": {
                 "title": "🤖 Thronos Bot Commands",
-                "description": "Here are all available commands:",
-                "setup": "**!setup_server** - Auto-configure server channels and content (Admin only)",
-                "stats": "**!stats** - Show real-time network statistics",
-                "help": "**!help [command]** - Show this help message",
-                "lang": "**!language** - Select your preferred language",
-                "verify": "Click the Verify button to access channels",
+                "desc": "Here are all available commands:",
+                "cat_network": "📊 Network & Stats",
+                "cat_defi": "💰 DeFi & Tokens",
+                "cat_ai": "🤖 AI Network",
+                "cat_community": "🏆 Community",
+                "cat_governance": "🏛️ Governance",
+                "cat_admin": "🛡️ Admin",
                 "footer": "For support, contact an administrator"
             },
-            "EL": {
+            "GR": {
                 "title": "🤖 Εντολές Thronos Bot",
-                "description": "Εδώ είναι όλες οι διαθέσιμες εντολές:",
-                "setup": "**!setup_server** - Αυτόματη διαμόρφωση καναλιών διακομιστή (Μόνο Admin)",
-                "stats": "**!stats** - Εμφάνιση στατιστικών δικτύου σε πραγματικό χρόνο",
-                "help": "**!help [εντολή]** - Εμφάνιση αυτού του μηνύματος βοηθείας",
-                "lang": "**!language** - Επιλέξτε την προτιμώμενη γλώσσα σας",
-                "verify": "Κάντε κλικ στο κουμπί Επαλήθευση για πρόσβαση στα κανάλια",
+                "desc": "Εδώ είναι όλες οι διαθέσιμες εντολές:",
+                "cat_network": "📊 Δίκτυο & Στατιστικά",
+                "cat_defi": "💰 DeFi & Tokens",
+                "cat_ai": "🤖 AI Δίκτυο",
+                "cat_community": "🏆 Κοινότητα",
+                "cat_governance": "🏛️ Διακυβέρνηση",
+                "cat_admin": "🛡️ Διαχείριση",
                 "footer": "Για υποστήριξη, επικοινωνήστε με έναν διαχειριστή"
             },
             "ES": {
                 "title": "🤖 Comandos de Thronos Bot",
-                "description": "Aquí están todos los comandos disponibles:",
-                "setup": "**!setup_server** - Configurar automáticamente canales del servidor (Solo Admin)",
-                "stats": "**!stats** - Mostrar estadísticas de red en tiempo real",
-                "help": "**!help [comando]** - Mostrar este mensaje de ayuda",
-                "lang": "**!language** - Seleccionar su idioma preferido",
-                "verify": "Haga clic en el botón Verificar para acceder a los canales",
+                "desc": "Aquí están todos los comandos disponibles:",
+                "cat_network": "📊 Red y Estadísticas",
+                "cat_defi": "💰 DeFi y Tokens",
+                "cat_ai": "🤖 Red de IA",
+                "cat_community": "🏆 Comunidad",
+                "cat_governance": "🏛️ Gobernanza",
+                "cat_admin": "🛡️ Administración",
                 "footer": "Para soporte, contacte a un administrador"
             },
             "RU": {
                 "title": "🤖 Команды Thronos Bot",
-                "description": "Вот все доступные команды:",
-                "setup": "**!setup_server** - Автоматическая настройка каналов сервера (Только Admin)",
-                "stats": "**!stats** - Показать статистику сети в реальном времени",
-                "help": "**!help [команда]** - Показать это справочное сообщение",
-                "lang": "**!language** - Выбрать предпочитаемый язык",
-                "verify": "Нажмите кнопку Проверить для доступа к каналам",
+                "desc": "Вот все доступные команды:",
+                "cat_network": "📊 Сеть и Статистика",
+                "cat_defi": "💰 DeFi и Токены",
+                "cat_ai": "🤖 Сеть ИИ",
+                "cat_community": "🏆 Сообщество",
+                "cat_governance": "🏛️ Управление",
+                "cat_admin": "🛡️ Администрирование",
                 "footer": "Для поддержки свяжитесь с администратором"
             },
             "JA": {
                 "title": "🤖 Thronos Bot コマンド",
-                "description": "利用可能なコマンド一覧:",
-                "setup": "**!setup_server** - サーバーチャンネルの自動設定 (管理者のみ)",
-                "stats": "**!stats** - リアルタイムネットワーク統計を表示",
-                "help": "**!help [コマンド]** - このヘルプメッセージを表示",
-                "lang": "**!language** - 優先言語を選択",
-                "verify": "確認ボタンをクリックしてチャンネルにアクセス",
+                "desc": "利用可能なコマンド一覧:",
+                "cat_network": "📊 ネットワーク & 統計",
+                "cat_defi": "💰 DeFi & トークン",
+                "cat_ai": "🤖 AIネットワーク",
+                "cat_community": "🏆 コミュニティ",
+                "cat_governance": "🏛️ ガバナンス",
+                "cat_admin": "🛡️ 管理者",
                 "footer": "サポートについては管理者にお問い合わせください"
             }
         }
@@ -92,16 +96,42 @@ class CustomHelp(commands.Cog):
         
         embed = discord.Embed(
             title=text["title"],
-            description=text["description"],
+            description=text["desc"],
             color=0x3498db
         )
         
-        embed.add_field(name="📋 Commands / Εντολές / Comandos", value=(
-            f"{text['setup']}\n"
-            f"{text['stats']}\n"
-            f"{text['help']}\n"
-            f"{text['lang']}\n"
-            f"{text['verify']}"
+        embed.add_field(name=text["cat_network"], value=(
+            "**!stats** — Live network statistics\n"
+            "**!price** — THR token price\n"
+        ), inline=False)
+        
+        embed.add_field(name=text["cat_defi"], value=(
+            "**!tokens** — All tokens on the network\n"
+            "**!token <symbol>** — Token details\n"
+            "**!pools** — Liquidity pools & TVL\n"
+        ), inline=False)
+        
+        embed.add_field(name=text["cat_ai"], value=(
+            "**!ask <message>** — Query the Thronos AI\n"
+            "**!bind <address>** — Bind wallet for AI credits\n"
+        ), inline=False)
+        
+        embed.add_field(name=text["cat_community"], value=(
+            "**!leaderboard** — Top members by XP\n"
+            "**!rank** — Your stats & rank\n"
+            "**!help** — This help menu\n"
+        ), inline=False)
+        
+        embed.add_field(name=text["cat_governance"], value=(
+            "**!propose \"Title\" desc** — Create a vote (Admin)\n"
+            "**!proposals** — List all proposals\n"
+        ), inline=False)
+        
+        embed.add_field(name=text["cat_admin"], value=(
+            "**!setup_server** — Auto-configure channels (Admin)\n"
+            "**!announce <msg>** — Broadcast message (Admin)\n"
+            "**!purge <N>** — Delete N messages (Admin)\n"
+            "**!sync_now** — Force content sync (Admin)\n"
         ), inline=False)
         
         embed.set_footer(text=text["footer"])
