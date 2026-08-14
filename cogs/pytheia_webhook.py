@@ -9,6 +9,8 @@ import html
 import os
 import re
 import time
+from future_btc_signal import handle_request as handle_future_btc_signal
+from promotion import health_handler as promotion_health_handler
 
 logger = logging.getLogger('thronos_bot.pytheia')
 
@@ -51,6 +53,8 @@ class PytheiaWebhook(commands.Cog):
 
         self.app = web.Application()
         self.app.router.add_post('/pytheia/alert', self.handle_alert)
+        self.app.router.add_post('/sigbalbot/free-btc-signal', handle_future_btc_signal)
+        self.app.router.add_get('/health/community-promotion', promotion_health_handler)
         self.runner = None
         self.site = None
 
