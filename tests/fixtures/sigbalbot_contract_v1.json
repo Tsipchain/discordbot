@@ -1,0 +1,14 @@
+{
+  "shared_secret": "integration-test-secret",
+  "raw_body_utf8": "{\"contract_version\":\"1.0\",\"event_id\":\"fixture-event-20260814\",\"symbol\":\"BTC/USDT\",\"signal\":\"LONG\",\"timeframe\":\"4h\",\"published_at\":\"2026-08-14T12:00:00Z\",\"valid_until\":\"2026-08-14T16:00:00Z\",\"price\":65000,\"confidence\":92,\"risk\":\"MEDIUM\",\"summary\":\"Finalized public BTC market thesis for educational analysis only.\"}",
+  "signature_header": "X-SigBalBot-Signature",
+  "signature_value": "sha256=ed2bd1a13c3db4832d87295f09f10371398436200903b50c59d4c359a027f6b3",
+  "expected_new_response": {
+    "status": "accepted",
+    "duplicate": false
+  },
+  "expected_duplicate_response": {
+    "status": "accepted",
+    "duplicate": true
+  }
+}
