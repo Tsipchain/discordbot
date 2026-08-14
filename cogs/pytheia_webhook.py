@@ -9,6 +9,11 @@ import html
 import os
 import re
 import time
+from future_btc_signal import (
+    configure_publisher,
+    handle_request as handle_future_btc_signal,
+)
+from promotion import health_handler as promotion_health_handler
 
 logger = logging.getLogger('thronos_bot.pytheia')
 
@@ -46,11 +51,15 @@ class PytheiaWebhook(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.webhook_secret = os.getenv("WEBHOOK_SECRET")
+        self.signal_publisher = configure_publisher(bot)
         if not self.webhook_secret:
             logger.warning("WEBHOOK_SECRET not set - webhook endpoint will reject all requests")
 
         self.app = web.Application()
         self.app.router.add_post('/pytheia/alert', self.handle_alert)
+        self.app.router.add_post('/sigbalbot/free-btc-signal', handle_future_btc_signal)
+        self.app.router.add_get('/health/community-promotion', promotion_health_handler)
+        self.app.router.add_get('/health/sigbalbot-relay', self.handle_signal_health)
         self.runner = None
         self.site = None
 
@@ -98,6 +107,30 @@ class PytheiaWebhook(commands.Cog):
             return False
         self._request_timestamps.append(now)
         return True
+
+    async def handle_signal_health(self, request):
+        return web.json_response(self.signal_publisher.diagnostics())
+
+    @commands.hybrid_command(
+        name="sigbalbot_publication_status",
+        description="Safe SigBalBot intake and publication diagnostics",
+    )
+    @commands.has_permissions(administrator=True)
+    async def signal_status(self, ctx):
+        import json
+        await ctx.reply(
+            f"```json\n{json.dumps(self.signal_publisher.diagnostics(), indent=2)}\n```",
+            ephemeral=True,
+        )
+
+    @commands.hybrid_command(
+        name="sigbalbot_publication_test",
+        description="Send a non-trading fixture to the private test channel",
+    )
+    @commands.has_permissions(administrator=True)
+    async def signal_test(self, ctx):
+        result = await self.signal_publisher.dry_run()
+        await ctx.reply(f"Publication test result: `{result}`", ephemeral=True)
 
     async def handle_alert(self, request):
         try:

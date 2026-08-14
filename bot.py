@@ -59,6 +59,7 @@ class ThronosBot(commands.Bot):
             'cogs.announcements', 'cogs.governance', 'cogs.ticker_status',
             'cogs.leaderboard', 'cogs.nft_gallery', 'cogs.ai_chat',
             'cogs.pytheia_webhook', 'cogs.evm_watcher',
+            'cogs.community_promotion',
         ]
         for ext in extensions:
             try:
