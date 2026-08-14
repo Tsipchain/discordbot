@@ -49,6 +49,12 @@ def test_invalid_payloads_rejected(changes):
         relay.validate_payload(payload(**changes))
 
 
+def test_destination_fields_are_rejected():
+    for field in ("channel_id", "guild_id", "role_id", "webhook_url"):
+        with pytest.raises(relay.ContractError):
+            relay.validate_payload(payload(**{field: "123456789012345678"}))
+
+
 def test_stale_and_invalid_timestamps_rejected():
     now = datetime.now(timezone.utc)
     with pytest.raises(relay.ContractError):

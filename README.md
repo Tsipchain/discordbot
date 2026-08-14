@@ -65,7 +65,8 @@ bodies. The same safe fields are available to server health monitoring at
 
 1. Back up the persistent `data/thronos.db` volume and deploy the new revision. On
    startup `database.init_db()` applies the idempotent schema; the equivalent SQL is
-   in `migrations/001_community_promotions.sql` for managed migration workflows.
+   in `migrations/001_community_promotions.sql` and
+   `migrations/002_future_btc_publications.sql` for managed migration workflows.
 2. Attach a persistent Railway volume for `data/` (or provide equivalent durable
    storage), configure the promotion variables, and initially leave the feature off.
 3. Start exactly one `web: python bot.py` process, confirm `/promotion_status`, then
@@ -84,10 +85,10 @@ later redeploy. If removal is mandatory, back up the database and drop
 `community_promotions` and `future_btc_signal_events` only after the old code is live.
 Do not delete only the current day's reservation while any promotion worker is active.
 
-## SigBalBot sender integration contract (storage only)
+## SigBalBot sender integration contract
 
 The exact production route is `POST /sigbalbot/free-btc-signal` on the discordbot
-HTTPS origin. The sender must not include a channel ID. The only future destination is
+HTTPS origin. The sender must not include a channel ID. The only publication destination is
 the discordbot server-side `FREE_BTC_SIGNAL_CHANNEL_ID` setting.
 
 ### Receiver environment and current behavior
@@ -95,15 +96,31 @@ the discordbot server-side `FREE_BTC_SIGNAL_CHANNEL_ID` setting.
 | Variable | Purpose |
 | --- | --- |
 | `FREE_BTC_SIGNAL_RELAY_ENABLED` | Enables authenticated contract intake and storage. Defaults to `false`. |
-| `FREE_BTC_SIGNAL_PUBLICATION_ENABLED` | Reserved, separate opt-in for a future Discord publisher. Defaults to `false`; this release never reads it or publishes. |
-| `FREE_BTC_SIGNAL_CHANNEL_ID` | Reserved server-side Discord destination for that future publisher. It never appears in a sender payload. |
+| `FREE_BTC_SIGNAL_PUBLICATION_ENABLED` | Separately enables publication of accepted events. Defaults to `false`. |
+| `FREE_BTC_SIGNAL_CHANNEL_ID` | Server-side production free-signals destination. It never appears in a sender payload. |
+| `FREE_BTC_SIGNAL_TEST_CHANNEL_ID` | Server-side private destination used only by the administrator dry-run command. |
 | `SIGBALBOT_RELAY_SECRET` | Dedicated shared HMAC secret for this contract. Never use a Discord/Telegram token or another API secret. |
 
-This implementation **stores only**. Even when intake is enabled, it does not post to
-Discord. `FREE_BTC_SIGNAL_PUBLICATION_ENABLED` must remain false until a separate PR
-implements the rolling-seven-day publication policy. That future implementation must
-also require a valid server-configured `FREE_BTC_SIGNAL_CHANNEL_ID`; enabling intake
-must never implicitly enable publication.
+Intake and publication are independent. With intake enabled and publication disabled,
+the receiver validates and stores only. Publication additionally requires
+`FREE_BTC_SIGNAL_PUBLICATION_ENABLED=true`, a valid server-configured
+`FREE_BTC_SIGNAL_CHANNEL_ID`, and an HTTPS SigBalBot Telegram/public URL. Enabling
+intake never implicitly enables publication.
+
+Publication reserves an event before calling Discord, persists its message ID, and
+allows no more than one published BTC signal in a rolling seven-day window. Events
+accepted while that window is occupied become `weekly_limited` and are never queued for
+later stale publication. Discord sends disable all mentions and escape summary markdown.
+Publication state is separate from intake and records `received`,
+`publication_pending`, `published`, `retryable_failure`, `permanent_failure`, or
+`weekly_limited`, along with bounded attempts, safe errors, attempt timestamps, the
+publication time, and Discord message ID. A stored message ID is conclusive success;
+duplicate requests and restarted/concurrent receivers do not send it again.
+
+Administrators can use `/sigbalbot_publication_status`, or server monitoring can read
+`GET /health/sigbalbot-relay`, for intake/publication flags, a redacted channel ID,
+pending count, last event/message/publication values, the last safe error, and next
+weekly eligibility. Neither surface returns secrets or Discord response bodies.
 
 ### Authentication and byte-level encoding
 
@@ -190,10 +207,9 @@ All response bodies are JSON. Current intake responses are:
 | Intake disabled | `404` | `{"error":"RELAY_DISABLED"}` |
 | Stale/future/expired event | `400` | `{"error":"STALE_EVENT"}` |
 
-The following responses are reserved for the future publication implementation and
-are **not emitted by this storage-only release**:
+When publication is enabled, these additional responses apply:
 
-| Future publication condition | HTTP | Exact JSON body |
+| Publication condition | HTTP | Exact JSON body |
 | --- | ---: | --- |
 | Seven-day rolling publication limit | `429` | `{"error":"WEEKLY_PUBLICATION_LIMIT"}` |
 | Stored, but temporary Discord delivery failure | `503` | `{"error":"DISCORD_TEMPORARY_FAILURE","stored":true}` |
@@ -209,8 +225,9 @@ stored event—or a second future Discord message.
 ```dotenv
 DISCORDBOT_BASE_URL=https://<discordbot-production-host>
 FREE_BTC_SIGNAL_RELAY_ENABLED=true                 # receiver only
-FREE_BTC_SIGNAL_PUBLICATION_ENABLED=false          # receiver only; reserved
+FREE_BTC_SIGNAL_PUBLICATION_ENABLED=false          # receiver-only independent opt-in
 FREE_BTC_SIGNAL_CHANNEL_ID=<discord-channel-id>    # receiver only; never in payload
+FREE_BTC_SIGNAL_TEST_CHANNEL_ID=<private-test-channel-id> # receiver only
 SIGBALBOT_RELAY_SECRET=<dedicated-random-secret>   # same value on sender and receiver
 ```
 
@@ -227,6 +244,27 @@ curl --fail-with-body -X POST \
 
 Never put a real secret directly in shell history in production; the placeholder above
 is only a copy-pasteable contract illustration.
+
+### Exact private-test deployment sequence
+
+1. Deploy with `FREE_BTC_SIGNAL_RELAY_ENABLED=false` and
+   `FREE_BTC_SIGNAL_PUBLICATION_ENABLED=false`.
+2. Configure `SIGBALBOT_RELAY_SECRET`, the production
+   `FREE_BTC_SIGNAL_CHANNEL_ID`, the distinct private
+   `FREE_BTC_SIGNAL_TEST_CHANNEL_ID`, and `SIGBALBOT_TELEGRAM_URL` (or
+   `SIGBALBOT_PUBLIC_URL`) entirely on the receiver.
+3. Restart discordbot so it loads the settings. Run
+   `/sigbalbot_publication_status` as a Discord administrator and confirm both flags are
+   false and the production channel ID is redacted.
+4. Run `/sigbalbot_publication_test`. It sends only a clearly labeled non-trading
+   fixture to `FREE_BTC_SIGNAL_TEST_CHANNEL_ID`; it creates no event ID and does not
+   change weekly eligibility.
+5. Enable `FREE_BTC_SIGNAL_RELAY_ENABLED=true`, restart, and POST a signed payload using
+   the integration fixture shape but fresh `published_at`, `valid_until`, and `event_id`
+   values. Confirm it is stored but the production channel remains unchanged.
+6. Only after those checks, set `FREE_BTC_SIGNAL_PUBLICATION_ENABLED=true` and restart.
+   Do not reuse the private test channel as the production channel. Roll back publication
+   independently by setting only this flag to `false`.
 
 ## Webhook Deployment Note
 
