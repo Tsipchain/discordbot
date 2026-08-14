@@ -2,7 +2,6 @@
 import asyncio
 import logging
 import os
-import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse

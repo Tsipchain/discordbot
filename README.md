@@ -84,20 +84,149 @@ later redeploy. If removal is mandatory, back up the database and drop
 `community_promotions` and `future_btc_signal_events` only after the old code is live.
 Do not delete only the current day's reservation while any promotion worker is active.
 
-## Future free BTC signal contract (storage only)
+## SigBalBot sender integration contract (storage only)
 
-`POST /sigbalbot/free-btc-signal` is disabled by default with
-`FREE_BTC_SIGNAL_RELAY_ENABLED=false`. When the storage contract is deliberately
-tested, it requires HTTPS and an `X-SigBal-Signature: sha256=<HMAC-SHA256>` over the
-raw body using the dedicated `SIGBALBOT_RELAY_SECRET`. It validates the versioned
-BTC/USDT LONG/SHORT payload, timestamp freshness, bounded plain-text summary, and
-stable unique `event_id`. Duplicate IDs return success without another row.
+The exact production route is `POST /sigbalbot/free-btc-signal` on the discordbot
+HTTPS origin. The sender must not include a channel ID. The only future destination is
+the discordbot server-side `FREE_BTC_SIGNAL_CHANNEL_ID` setting.
 
-This release **does not post accepted events to Discord**, scan markets, make trading
-decisions, or execute orders. A later delivery change must enforce at most one
-finalized high-confidence public signal per rolling seven days, use only the
-server-configured destination, include `valid_until` and an educational-risk notice,
-and exclude paid Sentinel, subscriber, wallet, and execution data.
+### Receiver environment and current behavior
+
+| Variable | Purpose |
+| --- | --- |
+| `FREE_BTC_SIGNAL_RELAY_ENABLED` | Enables authenticated contract intake and storage. Defaults to `false`. |
+| `FREE_BTC_SIGNAL_PUBLICATION_ENABLED` | Reserved, separate opt-in for a future Discord publisher. Defaults to `false`; this release never reads it or publishes. |
+| `FREE_BTC_SIGNAL_CHANNEL_ID` | Reserved server-side Discord destination for that future publisher. It never appears in a sender payload. |
+| `SIGBALBOT_RELAY_SECRET` | Dedicated shared HMAC secret for this contract. Never use a Discord/Telegram token or another API secret. |
+
+This implementation **stores only**. Even when intake is enabled, it does not post to
+Discord. `FREE_BTC_SIGNAL_PUBLICATION_ENABLED` must remain false until a separate PR
+implements the rolling-seven-day publication policy. That future implementation must
+also require a valid server-configured `FREE_BTC_SIGNAL_CHANNEL_ID`; enabling intake
+must never implicitly enable publication.
+
+### Authentication and byte-level encoding
+
+Compute HMAC-SHA256 over the **exact raw HTTP request bytes**, not over receiver-side
+canonicalized JSON. Send the digest as 64 lowercase hexadecimal characters (not
+Base64) with this exact header:
+
+```text
+X-SigBalBot-Signature: sha256=<64-lowercase-hex-digest>
+```
+
+The receiver compares the complete `sha256=<digest>` value in constant time. The body
+is UTF-8 JSON and is limited to 4096 bytes. A sender may use this precise serialization
+because those resulting bytes are both signed and sent unchanged:
+
+```python
+import hashlib
+import hmac
+import json
+import os
+
+body = json.dumps(
+    payload, separators=(",", ":"), ensure_ascii=False
+).encode("utf-8")
+signature = hmac.new(
+    os.environ["SIGBALBOT_RELAY_SECRET"].encode("utf-8"),
+    body,
+    hashlib.sha256,
+).hexdigest()
+headers = {
+    "Content-Type": "application/json",
+    "X-SigBalBot-Signature": f"sha256={signature}",
+}
+# Send `body` directly. Do not pass `json=payload`, which may reserialize it.
+```
+
+### Exact JSON schema and validation
+
+The object must contain **exactly** these fields; missing, additional, or differently
+cased fields are rejected:
+
+```json
+{
+  "contract_version": "1.0",
+  "event_id": "stable-retry-safe-id",
+  "symbol": "BTC/USDT",
+  "signal": "LONG",
+  "timeframe": "4h",
+  "published_at": "2026-08-14T12:00:00Z",
+  "valid_until": "2026-08-14T16:00:00Z",
+  "price": 65000,
+  "confidence": 92,
+  "risk": "MEDIUM",
+  "summary": "Finalized public BTC market thesis for educational analysis only."
+}
+```
+
+* `contract_version`: string, exactly `1.0`.
+* `event_id`: string, 1–128 ASCII characters matching `[A-Za-z0-9._:-]+`; it must be
+  stable across sender retries.
+* `symbol`: string, exactly `BTC/USDT`.
+* `signal`: string enum `LONG` or `SHORT`; `HOLD` is rejected.
+* `timeframe`: string matching `[1-9][0-9]?[mhdw]` (1–99 minutes/hours/days/weeks).
+* `published_at` and `valid_until`: strings of at most 35 characters in ISO-8601 UTC
+  form ending in uppercase `Z`. `published_at` may be at most 24 hours old and no more
+  than five minutes in the future. `valid_until` must be later than both the receiver's
+  current time and `published_at`.
+* `price`: non-boolean JSON number greater than or equal to zero.
+* `confidence`: non-boolean JSON number from 0 through 100, inclusive.
+* `risk`: string enum `LOW`, `MEDIUM`, or `HIGH`.
+* `summary`: non-empty string, at most 280 Unicode code points. HTML-like tags, `http://`
+  or `https://`, `www.`, `@everyone`, `@here`, and Discord user-mention syntax are
+  rejected. Arbitrary HTML, mentions, and links are therefore not accepted.
+
+### Exact response contract
+
+All response bodies are JSON. Current intake responses are:
+
+| Condition | HTTP | Exact JSON body |
+| --- | ---: | --- |
+| Accepted new event | `200` | `{"status":"accepted","duplicate":false}` |
+| Duplicate `event_id` | `200` | `{"status":"accepted","duplicate":true}` |
+| Invalid/missing HMAC | `401` | `{"error":"INVALID_SIGNATURE"}` |
+| Intake disabled | `404` | `{"error":"RELAY_DISABLED"}` |
+| Stale/future/expired event | `400` | `{"error":"STALE_EVENT"}` |
+
+The following responses are reserved for the future publication implementation and
+are **not emitted by this storage-only release**:
+
+| Future publication condition | HTTP | Exact JSON body |
+| --- | ---: | --- |
+| Seven-day rolling publication limit | `429` | `{"error":"WEEKLY_PUBLICATION_LIMIT"}` |
+| Stored, but temporary Discord delivery failure | `503` | `{"error":"DISCORD_TEMPORARY_FAILURE","stored":true}` |
+
+Other validation errors return HTTP `400` with a stable uppercase error code, and an
+oversized body returns `413` with `{"error":"PAYLOAD_TOO_LARGE"}`. Senders must treat
+both accepted responses as success. `event_id` has a database uniqueness constraint,
+so its idempotency survives process restarts and duplicate POSTs cannot create another
+stored event—or a second future Discord message.
+
+### SigBalBot sender handoff
+
+```dotenv
+DISCORDBOT_BASE_URL=https://<discordbot-production-host>
+FREE_BTC_SIGNAL_RELAY_ENABLED=true                 # receiver only
+FREE_BTC_SIGNAL_PUBLICATION_ENABLED=false          # receiver only; reserved
+FREE_BTC_SIGNAL_CHANNEL_ID=<discord-channel-id>    # receiver only; never in payload
+SIGBALBOT_RELAY_SECRET=<dedicated-random-secret>   # same value on sender and receiver
+```
+
+```bash
+BODY='<exact-compact-json-body>'
+DIGEST=$(printf '%s' "$BODY" | openssl dgst -sha256 \
+  -hmac '<dedicated-random-secret>' -hex | awk '{print $NF}')
+curl --fail-with-body -X POST \
+  'https://<discordbot-production-host>/sigbalbot/free-btc-signal' \
+  -H 'Content-Type: application/json' \
+  -H "X-SigBalBot-Signature: sha256=${DIGEST}" \
+  --data-binary "$BODY"
+```
+
+Never put a real secret directly in shell history in production; the placeholder above
+is only a copy-pasteable contract illustration.
 
 ## Webhook Deployment Note
 

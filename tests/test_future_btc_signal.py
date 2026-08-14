@@ -1,4 +1,6 @@
 import json
+import asyncio
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -62,3 +64,42 @@ def test_signature_is_constant_time_contract(monkeypatch):
     signature = "sha256=" + hmac.new(b"dedicated-test-secret", body, hashlib.sha256).hexdigest()
     assert relay.verify_signature(body, signature)
     assert not relay.verify_signature(body, signature + "x")
+
+
+def test_sender_contract_fixture_end_to_end(monkeypatch):
+    fixture_path = Path(__file__).parent / "fixtures" / "sigbalbot_contract_v1.json"
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+    body = fixture["raw_body_utf8"].encode("utf-8")
+
+    assert fixture["signature_header"] == relay.SIGNATURE_HEADER
+    assert relay.verify_signature(
+        body, fixture["signature_value"], fixture["shared_secret"]
+    )
+    data = relay.validate_payload(
+        json.loads(body), now=datetime(2026, 8, 14, 12, 1, tzinfo=timezone.utc)
+    )
+    assert data["event_id"] == "fixture-event-20260814"
+
+    class Request:
+        secure = True
+        headers = {fixture["signature_header"]: fixture["signature_value"]}
+
+        async def read(self):
+            return body
+
+    real_validate = relay.validate_payload
+    monkeypatch.setenv("FREE_BTC_SIGNAL_RELAY_ENABLED", "true")
+    monkeypatch.setenv("SIGBALBOT_RELAY_SECRET", fixture["shared_secret"])
+    monkeypatch.setattr(
+        relay, "validate_payload",
+        lambda value: real_validate(
+            value, now=datetime(2026, 8, 14, 12, 1, tzinfo=timezone.utc)
+        ),
+    )
+
+    first = asyncio.run(relay.handle_request(Request()))
+    assert first.status == 200
+    assert json.loads(first.body) == fixture["expected_new_response"]
+    second = asyncio.run(relay.handle_request(Request()))
+    assert second.status == 200
+    assert json.loads(second.body) == fixture["expected_duplicate_response"]

@@ -15,6 +15,8 @@ import database
 EVENT_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 TIMEFRAME_RE = re.compile(r"^[1-9][0-9]?[mhdw]$")
 LINK_OR_MARKUP_RE = re.compile(r"https?://|www\.|<[^>]*>|@(?:everyone|here)|<@", re.I)
+SIGNATURE_HEADER = "X-SigBalBot-Signature"
+MAX_BODY_BYTES = 4096
 
 
 class ContractError(ValueError):
@@ -94,22 +96,30 @@ def store_event(data):
         conn.close()
 
 
+def _json_response(web, data, status=200):
+    """Produce the byte-stable compact response documented for senders."""
+    return web.json_response(
+        data, status=status,
+        dumps=lambda value: json.dumps(value, separators=(",", ":")),
+    )
+
+
 async def handle_request(request):
     from aiohttp import web
     if not enabled():
-        return web.json_response({"error": "relay disabled"}, status=404)
+        return _json_response(web, {"error": "RELAY_DISABLED"}, status=404)
     # Railway and similar proxies terminate TLS, then provide the original scheme.
     if not request.secure and request.headers.get("X-Forwarded-Proto", "").lower() != "https":
-        return web.json_response({"error": "HTTPS required"}, status=400)
+        return _json_response(web, {"error": "HTTPS_REQUIRED"}, status=400)
     body = await request.read()
-    if len(body) > 4096:
-        return web.json_response({"error": "payload too large"}, status=413)
-    if not verify_signature(body, request.headers.get("X-SigBal-Signature")):
-        return web.json_response({"error": "unauthorized"}, status=401)
+    if len(body) > MAX_BODY_BYTES:
+        return _json_response(web, {"error": "PAYLOAD_TOO_LARGE"}, status=413)
+    if not verify_signature(body, request.headers.get(SIGNATURE_HEADER)):
+        return _json_response(web, {"error": "INVALID_SIGNATURE"}, status=401)
     try:
         data = validate_payload(json.loads(body))
     except (json.JSONDecodeError, ContractError) as exc:
         code = str(exc) if isinstance(exc, ContractError) else "INVALID_JSON"
-        return web.json_response({"error": code}, status=400)
+        return _json_response(web, {"error": code}, status=400)
     created = store_event(data)
-    return web.json_response({"status": "accepted", "duplicate": not created})
+    return _json_response(web, {"status": "accepted", "duplicate": not created})
