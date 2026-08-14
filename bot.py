@@ -39,8 +39,28 @@ logger = logging.getLogger('thronos_bot')
 
 # Load environment variables
 load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
-THRONOS_API_URL = os.getenv('THRONOS_API_URL')
+TOKEN = (os.getenv('DISCORD_TOKEN') or '').strip()
+THRONOS_API_URL = (os.getenv('THRONOS_API_URL') or '').strip()
+
+
+def discord_error_code(error):
+    """Return diagnostics safe for logs without serializing Discord response data."""
+    if isinstance(error, discord.LoginFailure):
+        return "DISCORD_AUTH_FAILED"
+    if isinstance(error, discord.Forbidden):
+        return "DISCORD_FORBIDDEN"
+    if isinstance(error, discord.NotFound):
+        return "DISCORD_NOT_FOUND"
+    if isinstance(error, discord.HTTPException):
+        status = getattr(error, "status", 0)
+        if status == 401:
+            return "DISCORD_AUTH_FAILED"
+        if status == 429:
+            return "DISCORD_RATE_LIMITED"
+        if status >= 500:
+            return "DISCORD_TEMPORARY_FAILURE"
+        return "DISCORD_HTTP_FAILURE"
+    return "DISCORD_CLIENT_FAILURE"
 
 class ThronosBot(commands.Bot):
     def __init__(self):
@@ -64,8 +84,12 @@ class ThronosBot(commands.Bot):
         for ext in extensions:
             try:
                 await self.load_extension(ext)
-            except Exception as e:
-                logger.error(f"Failed to load extension {ext}: {e}")
+            except Exception as error:
+                logger.error(
+                    "Failed to load extension %s [%s]",
+                    ext,
+                    type(error).__name__,
+                )
 
         # Sync commands with Discord
         try:
@@ -76,8 +100,8 @@ class ThronosBot(commands.Bot):
                 "Failed to sync commands: missing permissions. "
                 "Ensure the bot has the 'applications.commands' scope."
             )
-        except discord.HTTPException as e:
-            logger.error(f"Failed to sync commands: {e}")
+        except discord.HTTPException as error:
+            logger.error("Failed to sync commands [%s]", discord_error_code(error))
 
     async def on_ready(self):
         logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
@@ -102,16 +126,38 @@ class ThronosBot(commands.Bot):
                 "Please ensure my role is positioned above the roles I need to manage "
                 "and that I have the necessary permissions."
             )
-            logger.error(f"Permission error in command {ctx.command}: {error.original}")
+            logger.error("Permission error in command %s [DISCORD_FORBIDDEN]", ctx.command)
         else:
-            logger.error(f"Unhandled error in command {ctx.command}: {error}")
+            logger.error(
+                "Unhandled error in command %s [%s]",
+                ctx.command,
+                type(error).__name__,
+            )
             raise error
 
-if __name__ == '__main__':
+
+def run_bot():
+    """Start Discord with bounded, secret-safe startup failure reporting."""
     if not TOKEN:
-        print("Error: DISCORD_TOKEN not found in .env file.")
-    elif not THRONOS_API_URL:
-        print("Error: THRONOS_API_URL not found in .env file.")
-    else:
-        bot = ThronosBot()
-        bot.run(TOKEN)
+        logger.critical("Discord startup stopped [DISCORD_TOKEN_MISSING]")
+        return 1
+    if not THRONOS_API_URL:
+        logger.critical("Discord startup stopped [THRONOS_API_URL_MISSING]")
+        return 1
+    try:
+        ThronosBot().run(TOKEN)
+        return 0
+    except discord.LoginFailure:
+        # A 401 commonly surfaces from discord/http.py:778.  Never log the token,
+        # Authorization header, or Discord's response body.
+        logger.critical(
+            "Discord startup stopped [DISCORD_AUTH_FAILED]. "
+            "Replace DISCORD_TOKEN with the bot token from the Developer Portal."
+        )
+        return 1
+    except discord.HTTPException as error:
+        logger.critical("Discord startup stopped [%s]", discord_error_code(error))
+        return 1
+
+if __name__ == '__main__':
+    raise SystemExit(run_bot())

@@ -269,3 +269,17 @@ is only a copy-pasteable contract illustration.
 ## Webhook Deployment Note
 
 If deploying on external cloud providers (like Railway, Vercel, or Heroku), the Pytheia Webhook component automatically detects the provider's native `PORT` string. No internal code adjustments are required.
+
+## Discord startup troubleshooting
+
+If Railway shows a traceback ending at `discord/http.py` in `request` (often line 778),
+check the safe code immediately following it. `DISCORD_AUTH_FAILED` means Discord
+rejected `DISCORD_TOKEN`—normally an expired, reset, copied client secret, or otherwise
+invalid credential. Generate/copy the **bot token** from the Discord Developer Portal,
+replace the Railway `DISCORD_TOKEN` variable, and redeploy. Do not use the application
+ID, public key, client secret, webhook secret, or a token with surrounding quotes.
+
+Startup now trims accidental leading/trailing whitespace and logs only stable error
+codes. It deliberately does not print Discord response bodies, tokens, or Authorization
+headers. `DISCORD_FORBIDDEN` instead means the token authenticated but the bot lacks the
+required server/channel permission; correct the bot role rather than rotating secrets.
